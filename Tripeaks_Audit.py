@@ -5,8 +5,8 @@ import chardet
 import io
 
 # 1. 页面基础配置
-st.set_page_config(page_title="Tripeaks 审计平台 V1.9.18", layout="wide")
-st.title("🎴 Tripeaks 算法对比与深度审计平台 V1.9.18")
+st.set_page_config(page_title="Tripeaks 审计平台 V1.9.19", layout="wide")
+st.title("🎴 Tripeaks 算法对比与深度审计平台 V1.9.19")
 
 # --- 【工具函数：严防 NameError】 ---
 def get_col_safe(df, target_keywords):
@@ -30,7 +30,7 @@ def calculate_advanced_stats(series, trim_percentage):
     return mu, var, cv
 
 def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
-    """审计引擎：保留原有逻辑，新增得分构成记录 (breakdown_list)"""
+    """审计引擎：保留原有逻辑，新增得分构成记录"""
     try:
         seq_raw = str(row[col_map['seq']])
         seq = [int(x.strip()) for x in seq_raw.split(',') if x.strip() != ""]
@@ -38,31 +38,27 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
         diff = row[col_map['diff']]
         actual = str(row[col_map['act']])
     except: 
-        # 解析失败返回空占位
         return 0, "解析失败", 0, 0, 0, 0, 0, 0, "数据错误", 0, 0, 0
 
     score = base_init_score
-    breakdown = [f"基础分({base_init_score})"] # 记录得分构成
+    breakdown = [f"基础分({base_init_score})"] 
     
     # --- 辅助统计数据 (用于Excel导出) ---
     max_combo = max(seq) if seq else 0
     long_combo_cnt = sum(1 for x in seq if x >= 3)
     valid_hand_cnt = sum(1 for x in seq if x > 0)
     
-    # A. 基础体验分逻辑 (锁定不变)
+    # A. 基础体验分
     eff_idx = [i for i, x in enumerate(seq) if x >= 3]
     
     if sum(seq[:3]) >= 4: 
-        score += 5
-        breakdown.append("开局破冰(+5)")
+        score += 5; breakdown.append("开局破冰(+5)")
         
     if any(x >= 3 for x in seq[-5:]): 
-        score += 5
-        breakdown.append("尾部收割(+5)")
+        score += 5; breakdown.append("尾部收割(+5)")
         
     if len(seq) >= 7 and max(seq) in seq[6:]: 
-        score += 5
-        breakdown.append("逆风翻盘(+5)")
+        score += 5; breakdown.append("逆风翻盘(+5)")
     
     relay = 0
     if len(eff_idx) >= 2:
@@ -73,7 +69,7 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
     score += relay_score
     if relay_score > 0: breakdown.append(f"连击接力(+{relay_score})")
 
-    # B. 贫瘠区扣分 (锁定不变)
+    # B. 贫瘠区扣分
     c1, c2, c3 = 0, 0, 0
     boundaries = [-1] + eff_idx + [len(seq)]
     for j in range(len(boundaries)-1):
@@ -81,7 +77,6 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
         inter = seq[start:end]
         if inter:
             L, Z = len(inter), inter.count(0)
-        
             if L >= 6 or (L >= 4 and Z >= 3): 
                 c3 += 1; score -= 25 if start <= 2 else 20
                 breakdown.append(f"枯竭区(-{'25' if start <= 2 else '20'})")
@@ -92,15 +87,14 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
                 c1 += 1; score -= 5
                 breakdown.append("平庸区(-5)")
 
-    # C. 自动化局判定 (锁定不变)
+    # C. 自动化局判定
     f1, f2, red_auto = 0, 0, False
     con_list = []
     cur = 0
     for x in seq:
         if x > 0: cur += 1
         else:
-            if cur > 0: con_list.append(cur);
-            cur = 0
+            if cur > 0: con_list.append(cur); cur = 0
     if cur > 0: con_list.append(cur)
     
     for fl in con_list:
@@ -112,13 +106,12 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
             f1 += 1; score -= 3
             breakdown.append("高频投喂(-3)")
 
-    # D. 红线判定 (保留原有逻辑)
+    # D. 红线判定
     red_tags = []
     if max(seq) >= desk_init * 0.4: red_tags.append("数值崩坏")
     if red_auto: red_tags.append("自动化局")
     if (diff <= 30 and "失败" in actual) or (diff >= 40 and "胜利" in actual): red_tags.append("逻辑违逆")
     
-    # 滑动窗口集中度判定
     total_eliminated = sum(seq)
     if total_eliminated > 0 and len(seq) >= burst_window:
         is_burst = False
@@ -127,7 +120,6 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
                 is_burst = True; break
         if is_burst: red_tags.append("消除高度集中")
     
-    # 返回：原有数据 + 新增的统计数据
     return score, ",".join(red_tags) if red_tags else "通过", c1, c2, c3, relay, f1, f2, " | ".join(breakdown), max_combo, long_combo_cnt, valid_hand_cnt
 
 # --- 2. 侧边栏 ---
@@ -160,7 +152,7 @@ if uploaded_files:
 
     if raw_list:
         main_df = pd.concat(raw_list, ignore_index=True)
-        # 扩展列映射，增加对剩余牌详情的搜索
+        # 扩展列映射：精准定位“剩余桌面牌盖压关系”和“测试轮次”
         cm = {
             'seq': get_col_safe(main_df, ['全部连击']), 
             'desk': get_col_safe(main_df, ['初始桌面牌']),
@@ -169,30 +161,26 @@ if uploaded_files:
             'hand': get_col_safe(main_df, ['初始手牌']), 
             'jid': get_col_safe(main_df, ['解集ID']),
             'rem_hand': get_col_safe(main_df, ['剩余手牌']), 
-            'rem_desk': get_col_safe(main_df, ['剩余桌面牌', '剩余桌面', '剩余桌面牌详情']) # 匹配包含点数花色的列
+            'rem_desk_num': get_col_safe(main_df, ['剩余桌面牌', '剩余桌面']), # 纯数字计数
+            'rem_desk_detail': get_col_safe(main_df, ['剩余桌面牌盖压关系']),   # 具体的点数花色
+            'round_idx': get_col_safe(main_df, ['测试轮次', '轮次'])         # 原文件中的轮次
         }
 
         with st.spinner('执行红线并集概率审计...'):
-            # 基础局计算：接收新增的返回值
             audit_res = main_df.apply(lambda r: pd.Series(audit_engine(r, cm, base_score, burst_win, burst_thr)), axis=1)
-            # 将列名对齐，包含新增的 '得分构成', '最长连击', '长连次数', '有效手牌'
             main_df[['得分', '红线判定', 'c1', 'c2', 'c3', '接力', 'f1', 'f2', '得分构成', '最长连击', '长连次数', '有效手牌']] = audit_res
 
             fact_list = []
-            # 按 源文件+手牌+ID+难度 分组聚合
             for (f_n, h_v, j_i, d_v), gp in main_df.groupby(['__ORIGIN__', cm['hand'], cm['jid'], cm['diff']]):
                 total = len(gp)
-                # 红线并集概率核心逻辑
                 is_break = gp['红线判定'].str.contains("数值崩坏")
                 is_auto  = gp['红线判定'].str.contains("自动化局")
                 is_logic = gp['红线判定'].str.contains("逻辑违逆")
                 is_burst = gp['红线判定'].str.contains("消除高度集中")
                 
-                # 并集：只要有病就算一个
                 is_any_red = is_break | is_auto | is_logic | is_burst
                 total_red_rate = is_any_red.sum() / total
                 
-                # 统计通过结论
                 mu, var, cv = calculate_advanced_stats(gp['得分'], trim_val)
                 reason = "✅ 通过"
                 if total_red_rate >= 0.15:
@@ -239,24 +227,24 @@ if uploaded_files:
             "μ_均值":"{:.2f}", "σ²_方差":"{:.2f}", "总红线率":"{:.1%}", 
             "数值崩坏率":"{:.1%}", "自动化率":"{:.1%}", "逻辑违逆率":"{:.1%}", "爆发集中率":"{:.1%}"
         }), use_container_width=True)
-
         st.info(f"📊 数据核查：当前列表共有 {len(view_df[view_df['is_pass']==1])} 行通过记录，看板与明细已完全对齐。")
 
-        # === 4.3 新增：Excel 下载模块 ===
+        # === 4.3 新增：Excel 下载模块 (修复列错乱与详情缺失) ===
         with st.sidebar:
             st.divider()
             st.header("📥 导出审计详情")
-            # 准备下载数据
             export_df = main_df.copy()
             
-            # 构建输出列 (如果原文件没有剩余手牌/桌面列，填充 'N/A')
+            # 构建输出列映射
             export_cols = {
                 '__ORIGIN__': '关卡ID',
                 cm['jid']: '解集ID',
+                cm['round_idx']: '测试轮次',   # 优先使用原文件的轮次
                 cm['diff']: '难度',
                 cm['act']: '实际结果',
                 cm['rem_hand']: '剩余手牌',
-                cm['rem_desk']: '剩余桌面牌(点数花色)', # 明确表头，对应用户的“显示点数和花色”需求
+                cm['rem_desk_num']: '剩余桌面牌数',      # 纯数字
+                cm['rem_desk_detail']: '剩余桌面牌详情', # 盖压关系(点数花色)
                 '最长连击': '最长连击',
                 '长连次数': '长连次数',
                 cm['seq']: '全部连击',
@@ -268,34 +256,32 @@ if uploaded_files:
                 '得分构成': '得分构成'
             }
             
-            # 仅保留存在的列进行重命名和导出
+            # 1. 仅重命名存在的列，缺失列补 N/A
             final_export_cols = {}
             for k, v in export_cols.items():
                 if k is not None and k in export_df.columns:
                     final_export_cols[k] = v
-                elif v in ['剩余手牌', '剩余桌面牌(点数花色)']: # 特殊处理可能不存在的列
-                    export_df[v] = 'N/A'
-                    final_export_cols[v] = v
-            
-            # 重命名列
+                elif v in ['剩余手牌', '剩余桌面牌数', '剩余桌面牌详情', '测试轮次']: 
+                    # 如果原文件里没这列，我们先标记，稍后处理
+                    if k is None: export_df[v] = 'N/A' # 仅当原列名都没找到时才补N/A
+                    else: final_export_cols[k] = v # 找到了原列名但可能有其他问题，照常映射
+
             export_df = export_df.rename(columns=final_export_cols)
 
-            # --- 修复：防止 '测试轮次' 已存在导致的报错 ---
-            if '测试轮次' in export_df.columns:
-                export_df = export_df.drop(columns=['测试轮次'])
+            # 2. 只有当“测试轮次”在原文件中不存在时，才生成 1-based 索引
+            # 这样就“恢复”了原有的测试轮次数据，不至于混乱
+            if '测试轮次' not in export_df.columns:
+                 export_df.insert(2, '测试轮次', range(1, 1 + len(export_df)))
             
-            # 添加测试轮次 (1-based index)
-            export_df.insert(2, '测试轮次', range(1, 1 + len(export_df)))
-            
-            # 筛选最终输出列
-            target_cols = ['关卡ID', '解集ID', '测试轮次', '难度', '实际结果', '剩余手牌', '剩余桌面牌(点数花色)', 
+            # 3. 筛选最终输出列 (按顺序)
+            target_cols = ['关卡ID', '解集ID', '测试轮次', '难度', '实际结果', 
+                           '剩余手牌', '剩余桌面牌数', '剩余桌面牌详情', 
                            '最长连击', '长连次数', '全部连击', '有效手牌', '初始桌面牌', '初始手牌', 
                            '得分', '红线判定', '得分构成']
             
             # 确保列存在 (防止某些特殊情况下列丢失)
             target_cols = [c for c in target_cols if c in export_df.columns]
             
-            # 转换为CSV (Excel兼容格式)
             csv_data = export_df[target_cols].to_csv(index=False).encode('utf-8-sig')
             
             st.download_button(
