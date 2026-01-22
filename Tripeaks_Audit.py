@@ -5,8 +5,8 @@ import chardet
 import io
 
 # 1. 页面基础配置
-st.set_page_config(page_title="Tripeaks 审计平台 V1.9.19", layout="wide")
-st.title("🎴 Tripeaks 算法对比与深度审计平台 V1.9.19")
+st.set_page_config(page_title="Tripeaks 审计平台 V1.9.21", layout="wide")
+st.title("🎴 Tripeaks 算法对比与深度审计平台 V1.9.21")
 
 # --- 【工具函数：严防 NameError】 ---
 def get_col_safe(df, target_keywords):
@@ -199,15 +199,39 @@ if uploaded_files:
                 })
             df_fact = pd.DataFrame(fact_list)
 
-        # === 4.1 看板展示 ===
+        # === 4.1 看板展示 (功能升级：计算所有牌集的总体均分) ===
         st.header("📊 算法策略看板")
         strat_rows = []
         for h_v, gp_h in df_fact.groupby('初始手牌'):
-            diff_pass = gp_h[gp_h['is_pass'] == 1].groupby('难度').size().to_dict()
-            total_pass_jid = gp_h[gp_h['is_pass'] == 1].drop_duplicates(subset=['源文件', '解集ID']).shape[0]
+            # 1. 计算通过数量 (Pass Count)
+            pass_subset = gp_h[gp_h['is_pass'] == 1]
+            diff_pass_cnt = pass_subset.groupby('难度').size().to_dict()
+            
+            # 2. 计算【全局】平均分 (Global Average Score) - 无论是否通过
+            # gp_h 包含了该手牌数下的所有记录（通过+拒绝）
+            diff_global_avg = gp_h.groupby('难度')['μ_均值'].mean().to_dict()
+            
+            total_pass_jid = pass_subset.drop_duplicates(subset=['源文件', '解集ID']).shape[0]
             total_unique_jid = gp_h.drop_duplicates(subset=['源文件', '解集ID']).shape[0]
-            row = {"手牌数": h_v, "牌集总数": total_unique_jid, "✅ 通过(去重)": total_pass_jid, "覆盖率": total_pass_jid/total_unique_jid if total_unique_jid>0 else 0}
-            for d in sorted(df_fact['难度'].unique()): row[f"难度{d}通过"] = diff_pass.get(d, 0)
+            
+            row = {
+                "手牌数": h_v, 
+                "牌集总数": total_unique_jid, 
+                "✅ 通过(去重)": total_pass_jid, 
+                "覆盖率": total_pass_jid/total_unique_jid if total_unique_jid>0 else 0
+            }
+            
+            # 填充难度列：格式为 "通过数 (μ=全局均分)"
+            for d in sorted(df_fact['难度'].unique()):
+                cnt = diff_pass_cnt.get(d, 0) # 通过的数量
+                avg = diff_global_avg.get(d, 0) # 全局的均分
+                
+                # 只要该难度下有任何数据（平均分不为0），就显示
+                if avg > 0 or cnt > 0:
+                    row[f"难度{d} (通过|均分)"] = f"{cnt} (μ={avg:.1f})"
+                else:
+                    row[f"难度{d} (通过|均分)"] = "0"
+            
             strat_rows.append(row)
         st.dataframe(pd.DataFrame(strat_rows).style.format({"覆盖率":"{:.1%}"}), use_container_width=True)
 
@@ -229,7 +253,7 @@ if uploaded_files:
         }), use_container_width=True)
         st.info(f"📊 数据核查：当前列表共有 {len(view_df[view_df['is_pass']==1])} 行通过记录，看板与明细已完全对齐。")
 
-        # === 4.3 新增：Excel 下载模块 (修复列错乱与详情缺失) ===
+        # === 4.3 新增：Excel 下载模块 (保留所有修复) ===
         with st.sidebar:
             st.divider()
             st.header("📥 导出审计详情")
