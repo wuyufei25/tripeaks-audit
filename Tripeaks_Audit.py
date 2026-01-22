@@ -160,7 +160,7 @@ if uploaded_files:
 
     if raw_list:
         main_df = pd.concat(raw_list, ignore_index=True)
-        # 扩展列映射，尝试获取剩余牌数
+        # 扩展列映射，增加对剩余牌详情的搜索
         cm = {
             'seq': get_col_safe(main_df, ['全部连击']), 
             'desk': get_col_safe(main_df, ['初始桌面牌']),
@@ -168,8 +168,8 @@ if uploaded_files:
             'act': get_col_safe(main_df, ['实际结果']),
             'hand': get_col_safe(main_df, ['初始手牌']), 
             'jid': get_col_safe(main_df, ['解集ID']),
-            'rem_hand': get_col_safe(main_df, ['剩余手牌']), # 新增
-            'rem_desk': get_col_safe(main_df, ['剩余桌面', '剩余桌面牌']) # 新增
+            'rem_hand': get_col_safe(main_df, ['剩余手牌']), 
+            'rem_desk': get_col_safe(main_df, ['剩余桌面牌', '剩余桌面', '剩余桌面牌详情']) # 匹配包含点数花色的列
         }
 
         with st.spinner('执行红线并集概率审计...'):
@@ -256,7 +256,7 @@ if uploaded_files:
                 cm['diff']: '难度',
                 cm['act']: '实际结果',
                 cm['rem_hand']: '剩余手牌',
-                cm['rem_desk']: '剩余桌面牌',
+                cm['rem_desk']: '剩余桌面牌(点数花色)', # 明确表头，对应用户的“显示点数和花色”需求
                 '最长连击': '最长连击',
                 '长连次数': '长连次数',
                 cm['seq']: '全部连击',
@@ -273,7 +273,7 @@ if uploaded_files:
             for k, v in export_cols.items():
                 if k is not None and k in export_df.columns:
                     final_export_cols[k] = v
-                elif v in ['剩余手牌', '剩余桌面牌']: # 特殊处理可能不存在的列
+                elif v in ['剩余手牌', '剩余桌面牌(点数花色)']: # 特殊处理可能不存在的列
                     export_df[v] = 'N/A'
                     final_export_cols[v] = v
             
@@ -288,7 +288,7 @@ if uploaded_files:
             export_df.insert(2, '测试轮次', range(1, 1 + len(export_df)))
             
             # 筛选最终输出列
-            target_cols = ['关卡ID', '解集ID', '测试轮次', '难度', '实际结果', '剩余手牌', '剩余桌面牌', 
+            target_cols = ['关卡ID', '解集ID', '测试轮次', '难度', '实际结果', '剩余手牌', '剩余桌面牌(点数花色)', 
                            '最长连击', '长连次数', '全部连击', '有效手牌', '初始桌面牌', '初始手牌', 
                            '得分', '红线判定', '得分构成']
             
