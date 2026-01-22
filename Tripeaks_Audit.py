@@ -126,7 +126,7 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
 with st.sidebar:
     st.header("⚙️ 审计全局参数")
     base_score = st.slider("审计初始分 (Base)", 0, 100, 60)
-    mu_limit = st.slider("及格门槛 (μ)", 0, 100, 70)
+    mu_limit = st.slider("及格门槛 (μ)", 0, 100, 50)
     st.divider()
     st.subheader("⚠️ 节奏风控红线")
     burst_win = st.number_input("连续手牌数 (窗口大小)", 1, 10, 3)
@@ -134,7 +134,7 @@ with st.sidebar:
     st.divider()
     trim_val = st.slider("截断比例 (%)", 0, 30, 15)
     cv_limit = st.slider("最大 CV (稳定性)", 0.05, 0.50, 0.20)
-    var_limit = st.slider("最大方差保护", 10, 100, 25)
+    var_limit = st.slider("最大方差保护", 10, 100, 40)
     uploaded_files = st.file_uploader("📂 上传测试数据", type=["xlsx", "csv"], accept_multiple_files=True)
 
 # --- 3. 计算流程 ---
@@ -314,4 +314,5 @@ if uploaded_files:
                 file_name="Tripeaks_Audit_Details.csv",
                 mime="text/csv"
             )
+
 
