@@ -5,8 +5,8 @@ import chardet
 import io
 
 # 1. 页面基础配置
-st.set_page_config(page_title="Tripeaks 审计平台", layout="wide")
-st.title("🎴 Tripeaks 算法对比与深度审计平台")
+st.set_page_config(page_title="Tripeaks 审计平台 V1.9.22", layout="wide")
+st.title("🎴 Tripeaks 算法对比与深度审计平台 V1.9.22")
 
 # --- 【工具函数：严防 NameError】 ---
 def get_col_safe(df, target_keywords):
@@ -65,7 +65,7 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
         for i in range(len(eff_idx)-1):
             if (eff_idx[i+1]-eff_idx[i]-1) <= 1: relay += 1
     
-    relay_score = (5 if relay >= 3 else 4 if relay == 2 else 3 if relay == 1 else 0)
+    relay_score = (10 if relay >= 3 else 7 if relay == 2 else 5 if relay == 1 else 0)
     score += relay_score
     if relay_score > 0: breakdown.append(f"连击接力(+{relay_score})")
 
@@ -126,7 +126,11 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
 with st.sidebar:
     st.header("⚙️ 审计全局参数")
     base_score = st.slider("审计初始分 (Base)", 0, 100, 60)
-    mu_limit = st.slider("及格门槛 (μ)", 0, 100, 50)
+    mu_limit = st.slider("及格门槛 (μ)", 0, 100, 70)
+    # --- 新增：红线率控制滑块 ---
+    red_rate_limit = st.slider("红线率容忍度 (%)", 0, 100, 15)
+    # -------------------------
+    
     st.divider()
     st.subheader("⚠️ 节奏风控红线")
     burst_win = st.number_input("连续手牌数 (窗口大小)", 1, 10, 3)
@@ -134,7 +138,7 @@ with st.sidebar:
     st.divider()
     trim_val = st.slider("截断比例 (%)", 0, 30, 15)
     cv_limit = st.slider("最大 CV (稳定性)", 0.05, 0.50, 0.20)
-    var_limit = st.slider("最大方差保护", 10, 100, 40)
+    var_limit = st.slider("最大方差保护", 10, 100, 25)
     uploaded_files = st.file_uploader("📂 上传测试数据", type=["xlsx", "csv"], accept_multiple_files=True)
 
 # --- 3. 计算流程 ---
@@ -183,7 +187,10 @@ if uploaded_files:
                 
                 mu, var, cv = calculate_advanced_stats(gp['得分'], trim_val)
                 reason = "✅ 通过"
-                if total_red_rate >= 0.15:
+                
+                # --- 修改：使用滑块控制的红线率阈值 ---
+                if total_red_rate >= (red_rate_limit / 100):
+                # ----------------------------------
                     mode_reason = gp[is_any_red]['红线判定'].str.split(',').explode().mode()[0]
                     reason = f"❌ 红线拒绝 ({mode_reason})"
                 elif mu < mu_limit: reason = "❌ 分值拒绝"
@@ -314,6 +321,3 @@ if uploaded_files:
                 file_name="Tripeaks_Audit_Details.csv",
                 mime="text/csv"
             )
-
-
-
