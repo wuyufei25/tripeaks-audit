@@ -65,7 +65,10 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
         for i in range(len(eff_idx)-1):
             if (eff_idx[i+1]-eff_idx[i]-1) <= 1: relay += 1
     
+    # --- 修改：接力分数调整为 3, 5, 7 ---
     relay_score = (7 if relay >= 3 else 5 if relay == 2 else 3 if relay == 1 else 0)
+    # ----------------------------------
+    
     score += relay_score
     if relay_score > 0: breakdown.append(f"连击接力(+{relay_score})")
 
@@ -138,7 +141,7 @@ with st.sidebar:
     st.divider()
     trim_val = st.slider("截断比例 (%)", 0, 30, 15)
     cv_limit = st.slider("最大 CV (稳定性)", 0.05, 0.50, 0.20)
-    var_limit = st.slider("最大方差保护", 10, 100, 40)
+    var_limit = st.slider("最大方差保护", 10, 100, 25)
     uploaded_files = st.file_uploader("📂 上传测试数据", type=["xlsx", "csv"], accept_multiple_files=True)
 
 # --- 3. 计算流程 ---
@@ -321,6 +324,3 @@ if uploaded_files:
                 file_name="Tripeaks_Audit_Details.csv",
                 mime="text/csv"
             )
-
-
-
