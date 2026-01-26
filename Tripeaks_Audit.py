@@ -65,7 +65,7 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
         for i in range(len(eff_idx)-1):
             if (eff_idx[i+1]-eff_idx[i]-1) <= 1: relay += 1
     
-    relay_score = (10 if relay >= 3 else 7 if relay == 2 else 5 if relay == 1 else 0)
+    relay_score = (7 if relay >= 3 else 5 if relay == 2 else 3 if relay == 1 else 0)
     score += relay_score
     if relay_score > 0: breakdown.append(f"连击接力(+{relay_score})")
 
@@ -321,5 +321,6 @@ if uploaded_files:
                 file_name="Tripeaks_Audit_Details.csv",
                 mime="text/csv"
             )
+
 
 
