@@ -128,8 +128,8 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
 # --- 2. 侧边栏 ---
 with st.sidebar:
     st.header("⚙️ 审计全局参数")
-    base_score = st.slider("审计初始分 (Base)", 0, 100, 60)
-    mu_limit = st.slider("及格门槛 (μ)", 0, 100, 70)
+    base_score = st.slider("审计初始分 (Base)", 0, 100, 65)
+    mu_limit = st.slider("及格门槛 (μ)", 0, 100, 50)
     # --- 新增：红线率控制滑块 ---
     red_rate_limit = st.slider("红线率容忍度 (%)", 0, 100, 15)
     # -------------------------
@@ -141,7 +141,7 @@ with st.sidebar:
     st.divider()
     trim_val = st.slider("截断比例 (%)", 0, 30, 15)
     cv_limit = st.slider("最大 CV (稳定性)", 0.05, 0.50, 0.20)
-    var_limit = st.slider("最大方差保护", 10, 100, 25)
+    var_limit = st.slider("最大方差保护", 10, 100, 40)
     uploaded_files = st.file_uploader("📂 上传测试数据", type=["xlsx", "csv"], accept_multiple_files=True)
 
 # --- 3. 计算流程 ---
@@ -324,3 +324,4 @@ if uploaded_files:
                 file_name="Tripeaks_Audit_Details.csv",
                 mime="text/csv"
             )
+
