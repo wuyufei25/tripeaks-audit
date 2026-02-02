@@ -5,8 +5,8 @@ import chardet
 import io
 
 # 1. 页面基础配置
-st.set_page_config(page_title="Tripeaks 审计平台", layout="wide")
-st.title("🎴 Tripeaks 算法对比与深度审计平台")
+st.set_page_config(page_title="Tripeaks 审计平台 V1.9.24", layout="wide")
+st.title("🎴 Tripeaks 算法对比与深度审计平台 V1.9.24")
 
 # --- 【工具函数：严防 NameError】 ---
 def get_col_safe(df, target_keywords):
@@ -65,7 +65,7 @@ def audit_engine(row, col_map, base_init_score, burst_window, burst_threshold):
         for i in range(len(eff_idx)-1):
             if (eff_idx[i+1]-eff_idx[i]-1) <= 1: relay += 1
     
-    # --- 修改：接力分数调整为 3, 5, 7 ---
+    # --- 接力分数保持 3, 5, 7 ---
     relay_score = (7 if relay >= 3 else 5 if relay == 2 else 3 if relay == 1 else 0)
     # ----------------------------------
     
@@ -130,7 +130,7 @@ with st.sidebar:
     st.header("⚙️ 审计全局参数")
     base_score = st.slider("审计初始分 (Base)", 0, 100, 65)
     mu_limit = st.slider("及格门槛 (μ)", 0, 100, 50)
-    # --- 新增：红线率控制滑块 ---
+    # --- 红线率控制滑块 ---
     red_rate_limit = st.slider("红线率容忍度 (%)", 0, 100, 15)
     # -------------------------
     
@@ -191,9 +191,8 @@ if uploaded_files:
                 mu, var, cv = calculate_advanced_stats(gp['得分'], trim_val)
                 reason = "✅ 通过"
                 
-                # --- 修改：使用滑块控制的红线率阈值 ---
+                # --- 使用滑块控制的红线率阈值 ---
                 if total_red_rate >= (red_rate_limit / 100):
-                # ----------------------------------
                     mode_reason = gp[is_any_red]['红线判定'].str.split(',').explode().mode()[0]
                     reason = f"❌ 红线拒绝 ({mode_reason})"
                 elif mu < mu_limit: reason = "❌ 分值拒绝"
@@ -202,14 +201,15 @@ if uploaded_files:
                 
                 fact_list.append({
                     "源文件": f_n, "初始手牌": h_v, "解集ID": j_i, "难度": d_v,
-                    "μ_均值": mu, "σ²_方差": var, "判定结论": reason,
+                    "μ_均值": mu, "σ²_方差": var, "CV_变异系数": cv, # <--- 新增 CV 数据
+                    "判定结论": reason,
                     "总红线率": total_red_rate, "数值崩坏率": is_break.mean(),
                     "自动化率": is_auto.mean(), "逻辑违逆率": is_logic.mean(), "爆发集中率": is_burst.mean(),
                     "is_pass": 1 if "✅" in reason else 0
                 })
             df_fact = pd.DataFrame(fact_list)
 
-        # === 4.1 看板展示 (功能升级：计算所有牌集的总体均分) ===
+        # === 4.1 看板展示 (全局平均分) ===
         st.header("📊 算法策略看板")
         strat_rows = []
         for h_v, gp_h in df_fact.groupby('初始手牌'):
@@ -217,8 +217,7 @@ if uploaded_files:
             pass_subset = gp_h[gp_h['is_pass'] == 1]
             diff_pass_cnt = pass_subset.groupby('难度').size().to_dict()
             
-            # 2. 计算【全局】平均分 (Global Average Score) - 无论是否通过
-            # gp_h 包含了该手牌数下的所有记录（通过+拒绝）
+            # 2. 计算【全局】平均分 (Global Average Score)
             diff_global_avg = gp_h.groupby('难度')['μ_均值'].mean().to_dict()
             
             total_pass_jid = pass_subset.drop_duplicates(subset=['源文件', '解集ID']).shape[0]
@@ -231,12 +230,10 @@ if uploaded_files:
                 "覆盖率": total_pass_jid/total_unique_jid if total_unique_jid>0 else 0
             }
             
-            # 填充难度列：格式为 "通过数 (μ=全局均分)"
+            # 填充难度列
             for d in sorted(df_fact['难度'].unique()):
                 cnt = diff_pass_cnt.get(d, 0) # 通过的数量
                 avg = diff_global_avg.get(d, 0) # 全局的均分
-                
-                # 只要该难度下有任何数据（平均分不为0），就显示
                 if avg > 0 or cnt > 0:
                     row[f"难度{d} (通过|均分)"] = f"{cnt} (μ={avg:.1f})"
                 else:
@@ -245,7 +242,7 @@ if uploaded_files:
             strat_rows.append(row)
         st.dataframe(pd.DataFrame(strat_rows).style.format({"覆盖率":"{:.1%}"}), use_container_width=True)
 
-        # === 4.2 牌集风险明细排行 ===
+        # === 4.2 牌集风险明细排行 (新增 CV 展示) ===
         st.divider()
         st.subheader("🎯 牌集风险明细排行 (并集概率校验)")
         f_h = st.multiselect("手牌维度", sorted(df_fact['初始手牌'].unique()), default=sorted(df_fact['初始手牌'].unique()))
@@ -258,7 +255,8 @@ if uploaded_files:
         st.dataframe(view_df.drop(columns=['is_pass']).style.applymap(
             lambda x: 'color: #ff4b4b' if '❌' in str(x) else 'color: #008000', subset=['判定结论']
         ).format({
-            "μ_均值":"{:.2f}", "σ²_方差":"{:.2f}", "总红线率":"{:.1%}", 
+            "μ_均值":"{:.2f}", "σ²_方差":"{:.2f}", "CV_变异系数":"{:.2f}", # <--- 新增格式化
+            "总红线率":"{:.1%}", 
             "数值崩坏率":"{:.1%}", "自动化率":"{:.1%}", "逻辑违逆率":"{:.1%}", "爆发集中率":"{:.1%}"
         }), use_container_width=True)
         st.info(f"📊 数据核查：当前列表共有 {len(view_df[view_df['is_pass']==1])} 行通过记录，看板与明细已完全对齐。")
@@ -273,12 +271,12 @@ if uploaded_files:
             export_cols = {
                 '__ORIGIN__': '关卡ID',
                 cm['jid']: '解集ID',
-                cm['round_idx']: '测试轮次',   # 优先使用原文件的轮次
+                cm['round_idx']: '测试轮次',   
                 cm['diff']: '难度',
                 cm['act']: '实际结果',
                 cm['rem_hand']: '剩余手牌',
-                cm['rem_desk_num']: '剩余桌面牌数',      # 纯数字
-                cm['rem_desk_detail']: '剩余桌面牌详情', # 盖压关系(点数花色)
+                cm['rem_desk_num']: '剩余桌面牌数',      
+                cm['rem_desk_detail']: '剩余桌面牌详情', 
                 '最长连击': '最长连击',
                 '长连次数': '长连次数',
                 cm['seq']: '全部连击',
@@ -296,24 +294,21 @@ if uploaded_files:
                 if k is not None and k in export_df.columns:
                     final_export_cols[k] = v
                 elif v in ['剩余手牌', '剩余桌面牌数', '剩余桌面牌详情', '测试轮次']: 
-                    # 如果原文件里没这列，我们先标记，稍后处理
-                    if k is None: export_df[v] = 'N/A' # 仅当原列名都没找到时才补N/A
-                    else: final_export_cols[k] = v # 找到了原列名但可能有其他问题，照常映射
+                    if k is None: export_df[v] = 'N/A' 
+                    else: final_export_cols[k] = v 
 
             export_df = export_df.rename(columns=final_export_cols)
 
-            # 2. 只有当“测试轮次”在原文件中不存在时，才生成 1-based 索引
-            # 这样就“恢复”了原有的测试轮次数据，不至于混乱
+            # 2. 恢复轮次
             if '测试轮次' not in export_df.columns:
                  export_df.insert(2, '测试轮次', range(1, 1 + len(export_df)))
             
-            # 3. 筛选最终输出列 (按顺序)
+            # 3. 筛选最终输出列
             target_cols = ['关卡ID', '解集ID', '测试轮次', '难度', '实际结果', 
                            '剩余手牌', '剩余桌面牌数', '剩余桌面牌详情', 
                            '最长连击', '长连次数', '全部连击', '有效手牌', '初始桌面牌', '初始手牌', 
                            '得分', '红线判定', '得分构成']
             
-            # 确保列存在 (防止某些特殊情况下列丢失)
             target_cols = [c for c in target_cols if c in export_df.columns]
             
             csv_data = export_df[target_cols].to_csv(index=False).encode('utf-8-sig')
@@ -324,6 +319,3 @@ if uploaded_files:
                 file_name="Tripeaks_Audit_Details.csv",
                 mime="text/csv"
             )
-
-
-
