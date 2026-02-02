@@ -5,8 +5,8 @@ import chardet
 import io
 
 # 1. 页面基础配置
-st.set_page_config(page_title="Tripeaks 审计平台 V1.9.24", layout="wide")
-st.title("🎴 Tripeaks 算法对比与深度审计平台 V1.9.24")
+st.set_page_config(page_title="Tripeaks 审计平台", layout="wide")
+st.title("🎴 Tripeaks 算法对比与深度审计平台")
 
 # --- 【工具函数：严防 NameError】 ---
 def get_col_safe(df, target_keywords):
@@ -319,3 +319,4 @@ if uploaded_files:
                 file_name="Tripeaks_Audit_Details.csv",
                 mime="text/csv"
             )
+
